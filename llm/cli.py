@@ -4720,3 +4720,645 @@ def batch_status(batch_id):
     click.echo(f"Created:      {status['created_at']}")
     if status['completed_at']:
         click.echo(f"Completed:    {status['completed_at']}")
+
+
+@cli.group(name="export")
+def export_group():
+    """Export conversations, comparisons, and batch results"""
+    pass
+
+
+@export_group.command(name="conversation")
+@click.argument("conversation_id")
+@click.option(
+    "--format",
+    type=click.Choice(["html", "markdown", "json", "text"]),
+    default="markdown",
+    help="Output format"
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    help="Output file path"
+)
+@click.option(
+    "--no-system",
+    is_flag=True,
+    help="Exclude system prompts from export"
+)
+@click.option(
+    "--template",
+    type=click.Path(exists=True),
+    help="Custom HTML template file"
+)
+def export_conversation_cmd(conversation_id, format, output, no_system, template):
+    """Export a conversation to various formats"""
+    from llm.export_manager import ExportManager
+
+    manager = ExportManager()
+
+    try:
+        template_content = None
+        if template:
+            with open(template, 'r') as f:
+                template_content = f.read()
+
+        result = manager.export_conversation(
+            conversation_id=conversation_id,
+            output_format=format,
+            output_file=output,
+            template=template_content,
+            include_system=not no_system
+        )
+
+        if output:
+            click.echo(f"Conversation exported to: {result}")
+        else:
+            click.echo(result)
+
+    except ValueError as e:
+        raise click.ClickException(str(e))
+    except Exception as e:
+        raise click.ClickException(f"Export failed: {str(e)}")
+
+
+@export_group.command(name="comparison")
+@click.argument("comparison_id")
+@click.option(
+    "--format",
+    type=click.Choice(["html", "markdown", "json"]),
+    default="markdown",
+    help="Output format"
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    help="Output file path"
+)
+@click.option(
+    "--template",
+    type=click.Path(exists=True),
+    help="Custom HTML template file"
+)
+def export_comparison_cmd(comparison_id, format, output, template):
+    """Export a model comparison to various formats"""
+    from llm.export_manager import ExportManager
+
+    manager = ExportManager()
+
+    try:
+        template_content = None
+        if template:
+            with open(template, 'r') as f:
+                template_content = f.read()
+
+        result = manager.export_comparison(
+            comparison_id=comparison_id,
+            output_format=format,
+            output_file=output,
+            template=template_content
+        )
+
+        if output:
+            click.echo(f"Comparison exported to: {result}")
+        else:
+            click.echo(result)
+
+    except ValueError as e:
+        raise click.ClickException(str(e))
+    except Exception as e:
+        raise click.ClickException(f"Export failed: {str(e)}")
+
+
+@export_group.command(name="batch")
+@click.argument("batch_id")
+@click.option(
+    "--format",
+    type=click.Choice(["csv", "json"]),
+    default="csv",
+    help="Output format"
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    required=True,
+    help="Output file path"
+)
+def export_batch_cmd(batch_id, format, output):
+    """Export batch results to CSV or JSON"""
+    from llm.export_manager import ExportManager
+
+    manager = ExportManager()
+
+    try:
+        result = manager.export_batch(
+            batch_id=batch_id,
+            output_format=format,
+            output_file=output
+        )
+
+        click.echo(f"Batch results exported to: {result}")
+
+    except ValueError as e:
+        raise click.ClickException(str(e))
+    except Exception as e:
+        raise click.ClickException(f"Export failed: {str(e)}")
+
+
+@cli.group(name="branch")
+def branch_group():
+    """Manage conversation branches"""
+    pass
+
+
+@branch_group.command(name="create")
+@click.argument("branch_name")
+@click.option(
+    "--conversation",
+    "-c",
+    help="Conversation ID (uses current if not specified)"
+)
+@click.option(
+    "--from-message",
+    "-f",
+    type=int,
+    help="Branch from message number"
+)
+@click.option(
+    "--description",
+    "-d",
+    help="Branch description"
+)
+@click.option(
+    "--parent",
+    "-p",
+    help="Parent branch name"
+)
+def branch_create_cmd(branch_name, conversation, from_message, description, parent):
+    """Create a new branch"""
+    from llm.branch_manager import BranchManager
+
+    if not conversation:
+        raise click.ClickException("--conversation is required")
+
+    manager = BranchManager()
+
+    try:
+        branch_id = manager.create_branch(
+            conversation_id=conversation,
+            branch_name=branch_name,
+            from_message=from_message,
+            description=description,
+            parent_branch=parent
+        )
+
+        click.echo(f"Branch '{branch_name}' created: {branch_id}")
+
+    except ValueError as e:
+        raise click.ClickException(str(e))
+
+
+@branch_group.command(name="list")
+@click.option(
+    "--conversation",
+    "-c",
+    required=True,
+    help="Conversation ID"
+)
+@click.option(
+    "--include-archived",
+    is_flag=True,
+    help="Include archived branches"
+)
+def branch_list_cmd(conversation, include_archived):
+    """List all branches"""
+    from llm.branch_manager import BranchManager
+
+    manager = BranchManager()
+    branches = manager.list_branches(conversation, include_inactive=include_archived)
+
+    if not branches:
+        click.echo("No branches found")
+        return
+
+    click.echo(f"\nBranches for conversation {conversation}:")
+    click.echo("=" * 70)
+
+    for branch in branches:
+        status = "" if branch["active"] else " [ARCHIVED]"
+        click.echo(f"\n{branch['branch_name']}{status}")
+        click.echo(f"  Messages: {branch['message_count']}")
+        click.echo(f"  Created:  {branch['created_at']}")
+        if branch['description']:
+            click.echo(f"  Description: {branch['description']}")
+
+
+@branch_group.command(name="tree")
+@click.option(
+    "--conversation",
+    "-c",
+    required=True,
+    help="Conversation ID"
+)
+@click.option(
+    "--format",
+    type=click.Choice(["ascii", "json"]),
+    default="ascii",
+    help="Output format"
+)
+def branch_tree_cmd(conversation, format):
+    """Visualize branch tree"""
+    from llm.tree_navigator import TreeNavigator
+
+    navigator = TreeNavigator()
+    output = navigator.visualize_tree(conversation, format=format)
+    click.echo(output)
+
+
+@branch_group.command(name="compare")
+@click.argument("branch1")
+@click.argument("branch2")
+@click.option(
+    "--conversation",
+    "-c",
+    required=True,
+    help="Conversation ID"
+)
+def branch_compare_cmd(branch1, branch2, conversation):
+    """Compare two branches"""
+    from llm.tree_navigator import TreeNavigator
+
+    navigator = TreeNavigator()
+
+    try:
+        comparison = navigator.compare_branches(conversation, branch1, branch2)
+
+        click.echo("\nBranch Comparison")
+        click.echo("=" * 70)
+        click.echo(f"\nBranch 1: {comparison['branch1']['name']}")
+        click.echo(f"  Total messages: {comparison['branch1']['total_messages']}")
+        click.echo(f"  Unique messages: {comparison['branch1']['unique_messages']}")
+
+        click.echo(f"\nBranch 2: {comparison['branch2']['name']}")
+        click.echo(f"  Total messages: {comparison['branch2']['total_messages']}")
+        click.echo(f"  Unique messages: {comparison['branch2']['unique_messages']}")
+
+        click.echo(f"\nCommon messages: {comparison['common']['messages']}")
+        click.echo(f"Divergence point: Message #{comparison['common']['divergence_point']}")
+
+        if comparison['common_ancestor']:
+            click.echo(f"Common ancestor: {comparison['common_ancestor']}")
+
+    except ValueError as e:
+        raise click.ClickException(str(e))
+
+
+@branch_group.command(name="rename")
+@click.argument("old_name")
+@click.argument("new_name")
+@click.option(
+    "--conversation",
+    "-c",
+    required=True,
+    help="Conversation ID"
+)
+def branch_rename_cmd(old_name, new_name, conversation):
+    """Rename a branch"""
+    from llm.branch_manager import BranchManager
+
+    manager = BranchManager()
+    success = manager.rename_branch(conversation, old_name, new_name)
+
+    if success:
+        click.echo(f"Branch renamed from '{old_name}' to '{new_name}'")
+    else:
+        raise click.ClickException(f"Failed to rename branch (may already exist)")
+
+
+@branch_group.command(name="delete")
+@click.argument("branch_name")
+@click.option(
+    "--conversation",
+    "-c",
+    required=True,
+    help="Conversation ID"
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Delete branch and all children"
+)
+def branch_delete_cmd(branch_name, conversation, force):
+    """Delete a branch"""
+    from llm.branch_manager import BranchManager
+
+    manager = BranchManager()
+
+    try:
+        success = manager.delete_branch(conversation, branch_name, force=force)
+
+        if success:
+            click.echo(f"Branch '{branch_name}' deleted")
+        else:
+            raise click.ClickException(f"Branch '{branch_name}' not found")
+
+    except ValueError as e:
+        raise click.ClickException(str(e))
+
+
+@branch_group.command(name="archive")
+@click.argument("branch_name")
+@click.option(
+    "--conversation",
+    "-c",
+    required=True,
+    help="Conversation ID"
+)
+def branch_archive_cmd(branch_name, conversation):
+    """Archive a branch"""
+    from llm.branch_manager import BranchManager
+
+    manager = BranchManager()
+    success = manager.archive_branch(conversation, branch_name)
+
+    if success:
+        click.echo(f"Branch '{branch_name}' archived")
+    else:
+        raise click.ClickException(f"Branch '{branch_name}' not found")
+
+
+@cli.group(name="context")
+def context_group():
+    """Manage conversation context and token limits"""
+    pass
+
+
+@context_group.command(name="status")
+@click.option("--conversation", "-c", required=True, help="Conversation ID")
+def context_status_cmd(conversation):
+    """Show context status"""
+    from llm.context_manager import ContextManager
+
+    manager = ContextManager()
+    status = manager.get_status(conversation)
+
+    click.echo(f"\nContext Status: {conversation}")
+    click.echo("=" * 60)
+    click.echo(f"Max tokens:       {status['max_tokens']}")
+    click.echo(f"Strategy:         {status['strategy']}")
+    click.echo(f"Auto-summarize:   {status['auto_summarize']}")
+    click.echo(f"Current messages: {status['current_messages']}")
+    click.echo(f"Estimated tokens: {status['estimated_tokens']}")
+    click.echo(f"Usage:            {status['percentage_used']:.1f}%")
+
+
+@context_group.command(name="set-limit")
+@click.argument("max_tokens", type=int)
+@click.option("--conversation", "-c", required=True, help="Conversation ID")
+def context_set_limit_cmd(max_tokens, conversation):
+    """Set token limit"""
+    from llm.context_manager import ContextManager
+
+    manager = ContextManager()
+    manager.set_limit(conversation, max_tokens)
+    click.echo(f"Token limit set to {max_tokens}")
+
+
+@context_group.command(name="set-strategy")
+@click.argument("strategy", type=click.Choice(["sliding_window", "summarize_old", "keep_important"]))
+@click.option("--conversation", "-c", required=True, help="Conversation ID")
+def context_set_strategy_cmd(strategy, conversation):
+    """Set context management strategy"""
+    from llm.context_manager import ContextManager
+
+    manager = ContextManager()
+    manager.set_strategy(conversation, strategy)
+    click.echo(f"Strategy set to '{strategy}'")
+
+
+@context_group.command(name="summarize")
+@click.option("--conversation", "-c", required=True, help="Conversation ID")
+@click.option("--keep", type=int, default=5, help="Number of recent messages to keep")
+def context_summarize_cmd(conversation, keep):
+    """Summarize old messages"""
+    from llm.context_manager import ContextManager
+
+    manager = ContextManager()
+    summary = manager.summarize(conversation, keep_recent=keep)
+    click.echo(f"\nSummary:\n{summary}")
+
+
+@cli.group(name="benchmark")
+def benchmark_group():
+    """Run and manage model benchmarks"""
+    pass
+
+
+@benchmark_group.command(name="create")
+@click.argument("name")
+@click.option("--from-file", type=click.Path(exists=True), help="Load test cases from JSON file")
+@click.option("--description", help="Benchmark description")
+def benchmark_create_cmd(name, from_file, description):
+    """Create a new benchmark"""
+    from llm.benchmark_manager import BenchmarkManager
+    import json
+
+    if not from_file:
+        raise click.ClickException("--from-file is required")
+
+    with open(from_file, 'r') as f:
+        test_cases = json.load(f)
+
+    manager = BenchmarkManager()
+    benchmark_id = manager.create_benchmark(name, test_cases, description)
+
+    click.echo(f"Benchmark '{name}' created: {benchmark_id}")
+
+
+@benchmark_group.command(name="run")
+@click.argument("benchmark_name")
+@click.option("-m", "--model", "models", multiple=True, required=True, help="Models to benchmark")
+def benchmark_run_cmd(benchmark_name, models):
+    """Run a benchmark"""
+    from llm.benchmark_manager import BenchmarkManager
+
+    manager = BenchmarkManager()
+
+    click.echo(f"Running benchmark '{benchmark_name}' on {len(models)} models...")
+
+    run_id = manager.run_benchmark(benchmark_name, list(models))
+    run = manager.get_run(run_id)
+
+    click.echo(f"\nBenchmark Results:")
+    click.echo("=" * 70)
+
+    for model, scores in run["scores"].items():
+        click.echo(f"\n{model}:")
+        if "error" in scores:
+            click.echo(f"  Error: {scores['error']}")
+        else:
+            click.echo(f"  Accuracy: {scores['accuracy']*100:.1f}%")
+            click.echo(f"  Avg Time: {scores['avg_time']:.2f}s")
+            click.echo(f"  Tests:    {scores['total_tests']}")
+
+
+@benchmark_group.command(name="list")
+def benchmark_list_cmd():
+    """List all benchmarks"""
+    from llm.benchmark_manager import BenchmarkManager
+
+    manager = BenchmarkManager()
+    benchmarks = manager.list_benchmarks()
+
+    if not benchmarks:
+        click.echo("No benchmarks found")
+        return
+
+    click.echo("\nAvailable Benchmarks:")
+    click.echo("=" * 70)
+
+    for b in benchmarks:
+        click.echo(f"\n{b['name']}")
+        if b['description']:
+            click.echo(f"  {b['description']}")
+        click.echo(f"  Created: {b['created_at']}")
+
+
+@cli.group(name="optimize")
+def optimize_group():
+    """Optimize prompts for better results"""
+    pass
+
+
+@optimize_group.command(name="prompt")
+@click.argument("prompt")
+@click.option("--strategy", type=click.Choice(["auto", "expand", "simplify", "clarify"]), default="auto")
+@click.option("--model", default="gpt-4o", help="Model to use for optimization")
+def optimize_prompt_cmd(prompt, strategy, model):
+    """Optimize a prompt"""
+    from llm.prompt_optimizer import PromptOptimizer
+
+    optimizer = PromptOptimizer()
+    result = optimizer.optimize(prompt, strategy, model)
+
+    if "error" in result:
+        raise click.ClickException(result["error"])
+
+    click.echo("\nPrompt Optimization")
+    click.echo("=" * 70)
+    click.echo(f"\nOriginal:\n{result['original']}")
+    click.echo(f"\nOptimized ({result['strategy']}):\n{result['optimized']}")
+    click.echo(f"\nImprovement: {result['improvement']}")
+
+
+@optimize_group.command(name="test")
+@click.argument("prompt")
+@click.option("--variants", type=int, default=3, help="Number of variants to generate")
+@click.option("--model", default="gpt-4o", help="Model to use")
+def optimize_test_cmd(prompt, variants, model):
+    """Test multiple prompt variants"""
+    from llm.prompt_optimizer import PromptOptimizer
+
+    optimizer = PromptOptimizer()
+    results = optimizer.test_variants(prompt, variants, model)
+
+    click.echo("\nPrompt Variants:")
+    click.echo("=" * 70)
+
+    for r in results:
+        click.echo(f"\nVariant #{r['number']}:")
+        if r.get('variant'):
+            click.echo(f"{r['variant']}")
+            if "result" in r and "error" not in r["result"]:
+                click.echo(f"Response length: {r['result'].get('length', 0)} chars")
+        else:
+            click.echo(f"Error: {r.get('error', 'Unknown')}")
+
+
+@cli.group(name="schedule")
+def schedule_group():
+    """Schedule prompts to run automatically"""
+    pass
+
+
+@schedule_group.command(name="add")
+@click.argument("prompt")
+@click.option("--model", default="gpt-4o", help="Model to use")
+@click.option("--at", help="Run once at specific time (ISO format)")
+@click.option("--cron", help="Cron expression for recurring schedule")
+@click.option("--name", help="Job name")
+@click.option("--system", help="System prompt")
+def schedule_add_cmd(prompt, model, at, cron, name, system):
+    """Add a scheduled job"""
+    from llm.scheduler import Scheduler
+
+    if not at and not cron:
+        raise click.ClickException("Either --at or --cron is required")
+
+    schedule_type = "once" if at else "cron"
+    schedule_value = at or cron
+
+    scheduler = Scheduler()
+    job_id = scheduler.add_job(
+        prompt=prompt,
+        model=model,
+        schedule_type=schedule_type,
+        schedule_value=schedule_value,
+        name=name,
+        system_prompt=system
+    )
+
+    click.echo(f"Job scheduled: {job_id}")
+
+
+@schedule_group.command(name="list")
+def schedule_list_cmd():
+    """List scheduled jobs"""
+    from llm.scheduler import Scheduler
+
+    scheduler = Scheduler()
+    jobs = scheduler.list_jobs()
+
+    if not jobs:
+        click.echo("No scheduled jobs")
+        return
+
+    click.echo("\nScheduled Jobs:")
+    click.echo("=" * 70)
+
+    for job in jobs:
+        click.echo(f"\n{job['name'] or job['id']}")
+        click.echo(f"  Model:     {job['model']}")
+        click.echo(f"  Type:      {job['schedule_type']}")
+        click.echo(f"  Schedule:  {job['schedule_value']}")
+        if job['last_run']:
+            click.echo(f"  Last run:  {job['last_run']}")
+
+
+@schedule_group.command(name="run")
+@click.argument("job_id")
+def schedule_run_cmd(job_id):
+    """Run a job immediately"""
+    from llm.scheduler import Scheduler
+
+    scheduler = Scheduler()
+    run_id = scheduler.run_job_now(job_id)
+    click.echo(f"Job executed: {run_id}")
+
+
+@schedule_group.command(name="delete")
+@click.argument("job_id")
+def schedule_delete_cmd(job_id):
+    """Delete a scheduled job"""
+    from llm.scheduler import Scheduler
+
+    scheduler = Scheduler()
+    success = scheduler.delete_job(job_id)
+
+    if success:
+        click.echo(f"Job deleted: {job_id}")
+    else:
+        raise click.ClickException(f"Job not found: {job_id}")

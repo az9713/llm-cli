@@ -1,13 +1,9 @@
 # Feature 9: Smart Context Management
 
-> **⚠️ PROPOSED FEATURE - NOT YET IMPLEMENTED**
+> **✅ IMPLEMENTED FEATURE**
 >
-> This document describes a **proposed feature** for the LLM CLI that does not currently exist.
-> The `llm context` command and all related commands documented here are **not yet available**.
->
-> **Attempting to run these commands will result in "Error: No such command"**
->
-> This is a detailed specification for future implementation.
+> This feature is fully implemented and available in the LLM CLI.
+> All commands documented here are ready to use.
 
 ---
 
