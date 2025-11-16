@@ -1,19 +1,18 @@
-# LLM CLI - Proposed Features Documentation
+# LLM CLI - New Features Documentation
 
-> **⚠️ IMPORTANT: THESE ARE PROPOSED FEATURES, NOT YET IMPLEMENTED**
+> **📊 IMPLEMENTATION STATUS**
 >
-> **None of the commands documented here currently exist in the LLM CLI.**
+> **✅ 4 features FULLY IMPLEMENTED and ready to use**
+> **📋 6 features PROPOSED for future implementation**
 >
-> This documentation describes **future features** that are being proposed for implementation.
-> Attempting to run these commands will result in "Error: No such command" until they are implemented.
+> Implemented features (1-4) have working commands you can use right now.
+> Proposed features (5-10) are fully documented but not yet implemented - attempting to run these commands will result in "Error: No such command".
 >
-> **Status:** 📋 Proposal Stage - Documentation Complete, Implementation Pending
->
-> See the [main LLM documentation](https://llm.datasette.io/) for currently available features.
+> See the [main LLM documentation](https://llm.datasette.io/) for the base LLM CLI features.
 
 ---
 
-This directory contains comprehensive documentation for 10 new features **proposed** for the LLM CLI application. Each feature has been designed to address real user needs and would enhance the capabilities of the LLM command-line tool if implemented.
+This directory contains comprehensive documentation for 10 new features for the LLM CLI application. Four features are fully implemented and production-ready, while six are detailed proposals for future implementation.
 
 ## Overview
 
@@ -21,21 +20,21 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 
 ## The 10 New Features
 
-### 1. [Batch Processing](01-batch-processing.md) 📋 *Proposed*
+### 1. [Batch Processing](01-batch-processing.md) ✅ *Implemented*
 
 **Motivation:** Process hundreds or thousands of prompts automatically instead of one at a time.
 
-**What it would do:**
+**What it does:**
 - Process multiple prompts from CSV, JSON, or text files
 - Handle bulk data analysis tasks
 - Control rate limits and concurrency
 - Resume failed batches
 - Track progress with visual indicators
 
-**Proposed commands:**
-- `llm batch INPUT_FILE` - Process multiple prompts *(not yet implemented)*
-- `llm batch list` - View batch processing runs *(not yet implemented)*
-- `llm batch status BATCH_ID` - Check batch status *(not yet implemented)*
+**Available commands:**
+- `llm batch run INPUT_FILE` - Process multiple prompts
+- `llm batch list` - View batch processing runs
+- `llm batch status BATCH_ID` - Check batch status
 
 **Use cases:**
 - Analyzing customer reviews at scale
@@ -45,21 +44,22 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 
 ---
 
-### 2. [Model Comparison](02-model-comparison.md) 📋 *Proposed*
+### 2. [Model Comparison](02-model-comparison.md) ✅ *Implemented*
 
 **Motivation:** Make informed decisions about which AI model to use by comparing them objectively.
 
-**What it would do:**
+**What it does:**
 - Run identical prompts across multiple models
 - Display responses side-by-side
 - Compare speed, cost, and quality
-- Export comparison reports (HTML, Markdown, JSON)
+- Export comparison reports
 - Track performance metrics
 
-**Proposed commands:**
-- `llm compare -m MODEL1 -m MODEL2 "prompt"` - Compare models *(not yet implemented)*
-- `llm compare list` - View saved comparisons *(not yet implemented)*
-- `llm compare show ID` - Display comparison results *(not yet implemented)*
+**Available commands:**
+- `llm compare run "prompt" -m MODEL1 -m MODEL2` - Compare models
+- `llm compare list` - View saved comparisons
+- `llm compare show ID` - Display comparison results
+- `llm compare best ID` - Show best model from comparison
 
 **Use cases:**
 - Choosing between GPT-4o and Claude for your use case
@@ -69,11 +69,11 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 
 ---
 
-### 3. [Cost Tracking and Budget Management](03-cost-tracking.md) 📋 *Proposed*
+### 3. [Cost Tracking and Budget Management](03-cost-tracking.md) ✅ *Implemented*
 
 **Motivation:** Control AI spending with real-time tracking, budgets, and alerts.
 
-**What it would do:**
+**What it does:**
 - Track spending across all API calls
 - Set daily/weekly/monthly budgets
 - Receive alerts when approaching limits
@@ -81,11 +81,13 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 - Allocate budgets per project or model
 - Prevent overspending with hard limits
 
-**Proposed commands:**
-- `llm costs` - View current spending *(not yet implemented)*
-- `llm costs set-budget --monthly AMOUNT` - Set budget *(not yet implemented)*
-- `llm costs report --month YYYY-MM` - Generate report *(not yet implemented)*
-- `llm costs budget-status` - Check budget status *(not yet implemented)*
+**Available commands:**
+- `llm costs show` - View current spending
+- `llm costs set-budget NAME --amount AMOUNT` - Set budget
+- `llm costs report` - Generate spending report
+- `llm costs budget-status NAME` - Check budget status
+- `llm costs list-budgets` - List all budgets
+- `llm costs delete-budget NAME` - Delete a budget
 
 **Use cases:**
 - Managing team AI budgets
@@ -95,23 +97,27 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 
 ---
 
-### 4. [Prompt Library](04-prompt-library.md) 📋 *Proposed*
+### 4. [Prompt Library](04-prompt-library.md) ✅ *Implemented*
 
 **Motivation:** Save, organize, and share effective prompts instead of rewriting them.
 
-**What it would do:**
+**What it does:**
 - Save prompts to a searchable library
 - Organize with tags and categories
 - Share prompt collections with teams
-- Version control prompts
 - Track prompt performance
-- Import community prompts
+- Import and export prompts
 
-**Proposed commands:**
-- `llm prompts add NAME --prompt TEXT` - Save prompt *(not yet implemented)*
-- `llm prompts use NAME` or `llm -p NAME` - Use saved prompt *(not yet implemented)*
-- `llm prompts list` - Browse library *(not yet implemented)*
-- `llm prompts search QUERY` - Find prompts *(not yet implemented)*
+**Available commands:**
+- `llm prompts add NAME --prompt TEXT` - Save prompt
+- `llm prompts use NAME` - Use saved prompt
+- `llm prompts list` - Browse library
+- `llm prompts search QUERY` - Find prompts
+- `llm prompts show NAME` - View prompt details
+- `llm prompts edit NAME` - Edit a prompt
+- `llm prompts delete NAME` - Delete a prompt
+- `llm prompts export` - Export library
+- `llm prompts import FILE` - Import prompts
 
 **Use cases:**
 - Building team prompt collections
