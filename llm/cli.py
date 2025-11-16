@@ -4048,3 +4048,675 @@ def _get_conversation_tools(conversation, tools):
         if initial_tools:
             # Only tools from plugins:
             return [tool.name for tool in initial_tools if tool.plugin]
+
+# Prompt Library Commands
+@cli.group(name="prompts")
+def prompts_group():
+    """Manage prompt library - save, organize and reuse prompts"""
+    pass
+
+
+@prompts_group.command(name="add")
+@click.argument("name")
+@click.option("--prompt", required=True, help="Prompt template text")
+@click.option("--system", "system_prompt", help="System prompt")
+@click.option("--description", help="Brief description")
+@click.option("--category", help="Category name")
+@click.option("--tags", help="Comma-separated tags")
+@click.option("--model", help="Preferred model")
+@click.option("--file", "prompt_file", type=click.File('r'), help="Load prompt from file")
+def prompts_add(name, prompt, system_prompt, description, category, tags, model, prompt_file):
+    """Add a new prompt to the library"""
+    from llm.prompt_library import PromptLibrary
+    
+    if prompt_file:
+        prompt = prompt_file.read()
+    
+    tags_list = [t.strip() for t in tags.split(",")] if tags else None
+    
+    library = PromptLibrary()
+    try:
+        prompt_id = library.add_prompt(
+            name=name,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            description=description,
+            category=category,
+            tags=tags_list,
+            model=model
+        )
+        click.echo(f"Prompt '{name}' added successfully (ID: {prompt_id})")
+    except Exception as e:
+        raise click.ClickException(str(e))
+
+
+@prompts_group.command(name="list")
+@click.option("--category", help="Filter by category")
+@click.option("--tag", help="Filter by tag")
+@click.option("--author", help="Filter by author")
+@click.option("--limit", type=int, help="Limit number of results")
+@click.option("--format", "output_format", type=click.Choice(["table", "json", "yaml"]), default="table")
+def prompts_list(category, tag, author, limit, output_format):
+    """List saved prompts"""
+    from llm.prompt_library import PromptLibrary
+    import json
+    import yaml
+    
+    library = PromptLibrary()
+    prompts = library.list_prompts(category=category, tag=tag, author=author, limit=limit)
+    
+    if output_format == "json":
+        click.echo(json.dumps(prompts, indent=2))
+    elif output_format == "yaml":
+        click.echo(yaml.dump(prompts, default_flow_style=False))
+    else:
+        # Table format
+        if not prompts:
+            click.echo("No prompts found")
+            return
+        
+        click.echo(f"\nPrompt Library ({len(prompts)} prompts)\n")
+        click.echo(f"{'Name':<20} {'Category':<15} {'Tags':<30} {'Used':<8}")
+        click.echo("=" * 80)
+        for p in prompts:
+            tags_str = ", ".join(p.get('tags') or [])[:28]
+            click.echo(f"{p['name']:<20} {(p.get('category') or ''):<15} {tags_str:<30} {p['usage_count']:<8}")
+
+
+@prompts_group.command(name="show")
+@click.argument("name")
+def prompts_show(name):
+    """Show details of a prompt"""
+    from llm.prompt_library import PromptLibrary
+    
+    library = PromptLibrary()
+    prompt = library.get_prompt(name)
+    
+    if not prompt:
+        raise click.ClickException(f"Prompt '{name}' not found")
+    
+    click.echo(f"\nPrompt: {prompt['name']}")
+    click.echo("=" * 60)
+    if prompt.get('description'):
+        click.echo(f"Description: {prompt['description']}")
+    if prompt.get('category'):
+        click.echo(f"Category: {prompt['category']}")
+    if prompt.get('tags'):
+        click.echo(f"Tags: {', '.join(prompt['tags'])}")
+    if prompt.get('model'):
+        click.echo(f"Model: {prompt['model']}")
+    click.echo(f"Created: {prompt['created_at']}")
+    click.echo(f"Used: {prompt['usage_count']} times")
+    
+    click.echo(f"\nPrompt Template:")
+    click.echo("-" * 60)
+    click.echo(prompt['prompt'])
+    
+    if prompt.get('system_prompt'):
+        click.echo(f"\nSystem Prompt:")
+        click.echo("-" * 60)
+        click.echo(prompt['system_prompt'])
+
+
+@prompts_group.command(name="use")
+@click.argument("name")
+@click.option("--var", "variables", multiple=True, help="Variable in format key=value")
+@click.option("--vars", "vars_file", type=click.File('r'), help="JSON/YAML file with variables")
+@click.option("-m", "--model", help="Override default model")
+def prompts_use(name, variables, vars_file, model):
+    """Use a saved prompt"""
+    from llm.prompt_library import PromptLibrary
+    import json
+    import yaml
+    import re
+    
+    library = PromptLibrary()
+    prompt = library.get_prompt(name)
+    
+    if not prompt:
+        raise click.ClickException(f"Prompt '{name}' not found")
+    
+    # Parse variables
+    var_dict = {}
+    if vars_file:
+        content = vars_file.read()
+        try:
+            var_dict = json.loads(content)
+        except:
+            var_dict = yaml.safe_load(content)
+    
+    for var in variables:
+        if '=' not in var:
+            raise click.ClickException(f"Variable must be in format key=value, got: {var}")
+        key, value = var.split('=', 1)
+        var_dict[key] = value
+    
+    # Substitute variables in prompt
+    prompt_text = prompt['prompt']
+    for key, value in var_dict.items():
+        prompt_text = prompt_text.replace(f"{{{key}}}", value)
+    
+    # Check for unsubstituted variables
+    unsubstituted = re.findall(r'\{(\w+)\}', prompt_text)
+    if unsubstituted:
+        raise click.ClickException(f"Missing variables: {', '.join(unsubstituted)}")
+    
+    # Execute the prompt
+    from llm import get_model
+    
+    model_id = model or prompt.get('model')
+    llm_model = get_model(model_id)
+    
+    system = prompt.get('system_prompt')
+    response = llm_model.prompt(prompt_text, system=system)
+    
+    click.echo(response.text())
+    
+    # Track usage
+    library.increment_usage(name, cost=0.0, success=True)
+
+
+@prompts_group.command(name="edit")
+@click.argument("name")
+@click.option("--prompt", help="New prompt template")
+@click.option("--system", "system_prompt", help="New system prompt")
+@click.option("--description", help="New description")
+@click.option("--category", help="New category")
+@click.option("--tags", help="New tags (comma-separated)")
+@click.option("--create-version", is_flag=True, help="Create new version instead of overwriting")
+def prompts_edit(name, prompt, system_prompt, description, category, tags, create_version):
+    """Edit an existing prompt"""
+    from llm.prompt_library import PromptLibrary
+    
+    library = PromptLibrary()
+    tags_list = [t.strip() for t in tags.split(",")] if tags else None
+    
+    success = library.update_prompt(
+        name=name,
+        prompt=prompt,
+        system_prompt=system_prompt,
+        description=description,
+        category=category,
+        tags=tags_list,
+        create_version=create_version
+    )
+    
+    if success:
+        click.echo(f"Prompt '{name}' updated successfully")
+    else:
+        raise click.ClickException(f"Prompt '{name}' not found")
+
+
+@prompts_group.command(name="delete")
+@click.argument("name")
+@click.option("--force", is_flag=True, help="Don't ask for confirmation")
+def prompts_delete(name, force):
+    """Delete a prompt from the library"""
+    from llm.prompt_library import PromptLibrary
+    
+    if not force:
+        if not click.confirm(f"Delete prompt '{name}'?"):
+            return
+    
+    library = PromptLibrary()
+    success = library.delete_prompt(name)
+    
+    if success:
+        click.echo(f"Prompt '{name}' deleted")
+    else:
+        raise click.ClickException(f"Prompt '{name}' not found")
+
+
+@prompts_group.command(name="search")
+@click.argument("query")
+def prompts_search(query):
+    """Search prompts by name or description"""
+    from llm.prompt_library import PromptLibrary
+    
+    library = PromptLibrary()
+    prompts = library.search_prompts(query)
+    
+    if not prompts:
+        click.echo("No prompts found")
+        return
+    
+    click.echo(f"\nFound {len(prompts)} prompts:\n")
+    click.echo(f"{'Name':<20} {'Description':<40} {'Used':<8}")
+    click.echo("=" * 70)
+    for p in prompts:
+        desc = (p.get('description') or '')[:38]
+        click.echo(f"{p['name']:<20} {desc:<40} {p['usage_count']:<8}")
+
+
+@prompts_group.command(name="export")
+@click.argument("name")
+@click.option("--format", "output_format", type=click.Choice(["yaml", "json"]), default="yaml")
+@click.option("--output", type=click.File('w'), help="Output file (default: stdout)")
+def prompts_export(name, output_format, output):
+    """Export a prompt to YAML or JSON"""
+    from llm.prompt_library import PromptLibrary
+    
+    library = PromptLibrary()
+    exported = library.export_prompt(name, format=output_format)
+    
+    if not exported:
+        raise click.ClickException(f"Prompt '{name}' not found")
+    
+    if output:
+        output.write(exported)
+        click.echo(f"Prompt '{name}' exported to {output.name}", err=True)
+    else:
+        click.echo(exported)
+
+
+@prompts_group.command(name="import")
+@click.argument("source", type=click.File('r'))
+@click.option("--format", "input_format", type=click.Choice(["yaml", "json"]), default="yaml")
+@click.option("--overwrite", is_flag=True, help="Overwrite if exists")
+def prompts_import(source, input_format, overwrite):
+    """Import a prompt from YAML or JSON file"""
+    from llm.prompt_library import PromptLibrary
+    
+    library = PromptLibrary()
+    data = source.read()
+    
+    try:
+        name = library.import_prompt(data, format=input_format, overwrite=overwrite)
+        click.echo(f"Prompt '{name}' imported successfully")
+    except Exception as e:
+        raise click.ClickException(str(e))
+
+
+# Cost Tracking Commands
+@cli.group(name="costs")
+def costs_group():
+    """Track API costs and manage budgets"""
+    pass
+
+
+@costs_group.command(name="show")
+@click.option("--period", type=click.Choice(["today", "week", "month", "year", "all"]), default="month")
+@click.option("--project", help="Filter by project")
+@click.option("--model", help="Filter by model")
+@click.option("--detailed", is_flag=True, help="Show detailed breakdown")
+def costs_show(period, project, model, detailed):
+    """Show cost summary"""
+    from llm.cost_tracking import CostTracker
+    
+    tracker = CostTracker()
+    spending = tracker.get_spending(period=period, project=project, model=model)
+    
+    click.echo(f"\nCost Summary ({period})")
+    click.echo("=" * 60)
+    click.echo(f"Total Cost:        ${spending['total_cost']:.4f}")
+    click.echo(f"Total Prompts:     {spending['total_prompts']}")
+    click.echo(f"Total Tokens:      {spending['total_tokens']:,}")
+    if spending['total_prompts'] > 0:
+        click.echo(f"Avg Cost/Prompt:   ${spending['avg_cost_per_prompt']:.4f}")
+    
+    if detailed and spending['by_model']:
+        click.echo(f"\nBy Model:")
+        click.echo("-" * 60)
+        for model_name, stats in sorted(spending['by_model'].items(), key=lambda x: x[1]['cost'], reverse=True):
+            pct = (stats['cost'] / spending['total_cost'] * 100) if spending['total_cost'] > 0 else 0
+            click.echo(f"  {model_name:<20} ${stats['cost']:.4f} ({pct:.1f}%) - {stats['prompts']} prompts")
+
+
+@costs_group.command(name="set-budget")
+@click.argument("amount", type=float)
+@click.option("--name", default="default", help="Budget name")
+@click.option("--period", type=click.Choice(["daily", "weekly", "monthly", "yearly"]), default="monthly")
+@click.option("--project", help="Budget for specific project")
+@click.option("--model", help="Budget for specific model")
+@click.option("--alert-at", type=float, default=0.8, help="Alert threshold (0.0-1.0)")
+@click.option("--hard-limit", is_flag=True, help="Enforce hard limit")
+def costs_set_budget(amount, name, period, project, model, alert_at, hard_limit):
+    """Set a spending budget"""
+    from llm.cost_tracking import CostTracker
+    
+    category = "global"
+    category_value = None
+    
+    if project:
+        category = "project"
+        category_value = project
+    elif model:
+        category = "model"
+        category_value = model
+    
+    tracker = CostTracker()
+    budget_id = tracker.set_budget(
+        name=name,
+        amount=amount,
+        period=period,
+        category=category,
+        category_value=category_value,
+        alert_threshold=alert_at,
+        hard_limit=hard_limit
+    )
+    
+    limit_type = "hard limit" if hard_limit else "soft limit"
+    click.echo(f"Budget '{name}' set: ${amount:.2f}/{period} ({limit_type})")
+    if category != "global":
+        click.echo(f"  Scope: {category} = {category_value}")
+
+
+@costs_group.command(name="budget-status")
+@click.argument("name", default="default")
+def costs_budget_status(name):
+    """Check budget status"""
+    from llm.cost_tracking import CostTracker
+    
+    tracker = CostTracker()
+    status = tracker.check_budget_status(name)
+    
+    if not status:
+        raise click.ClickException(f"Budget '{name}' not found")
+    
+    click.echo(f"\nBudget Status: {name}")
+    click.echo("=" * 60)
+    click.echo(f"Period:       {status['period']}")
+    click.echo(f"Budget:       ${status['amount']:.2f}")
+    click.echo(f"Spent:        ${status['spent']:.2f} ({status['percentage']:.1f}%)")
+    click.echo(f"Remaining:    ${status['remaining']:.2f}")
+    click.echo(f"Status:       {status['status'].upper()}")
+    
+    if status['hard_limit'] and status['percentage'] >= 100:
+        click.echo("\n⚠️  HARD LIMIT REACHED - Further spending blocked")
+    elif status['status'] == 'critical':
+        click.echo("\n⚠️  WARNING: Approaching budget limit")
+
+
+@costs_group.command(name="list-budgets")
+@click.option("--all", "show_all", is_flag=True, help="Show inactive budgets too")
+def costs_list_budgets(show_all):
+    """List all budgets"""
+    from llm.cost_tracking import CostTracker
+    
+    tracker = CostTracker()
+    budgets = tracker.get_budgets(active_only=not show_all)
+    
+    if not budgets:
+        click.echo("No budgets set")
+        return
+    
+    click.echo(f"\nBudgets ({len(budgets)} total)\n")
+    click.echo(f"{'Name':<15} {'Amount':<12} {'Period':<10} {'Category':<15} {'Hard Limit'}")
+    click.echo("=" * 70)
+    
+    for budget in budgets:
+        hard_limit = "Yes" if budget['hard_limit'] else "No"
+        category = budget['category']
+        if budget['category_value']:
+            category += f":{budget['category_value']}"
+        click.echo(f"{budget['name']:<15} ${budget['amount']:<11.2f} {budget['period']:<10} {category:<15} {hard_limit}")
+
+
+@costs_group.command(name="delete-budget")
+@click.argument("name")
+@click.option("--force", is_flag=True, help="Don't ask for confirmation")
+def costs_delete_budget(name, force):
+    """Delete a budget"""
+    from llm.cost_tracking import CostTracker
+    
+    if not force:
+        if not click.confirm(f"Delete budget '{name}'?"):
+            return
+    
+    tracker = CostTracker()
+    deleted = tracker.delete_budget(name)
+    
+    if deleted:
+        click.echo(f"Budget '{name}' deleted")
+    else:
+        raise click.ClickException(f"Budget '{name}' not found")
+
+
+@costs_group.command(name="report")
+@click.option("--month", help="Specific month (YYYY-MM)")
+@click.option("--from-date", "from_date", help="Start date (YYYY-MM-DD)")
+@click.option("--to-date", "to_date", help="End date (YYYY-MM-DD)")
+@click.option("--export", "export_file", type=click.File('w'), help="Export to file (JSON)")
+def costs_report(month, from_date, to_date, export_file):
+    """Generate cost report"""
+    from llm.cost_tracking import CostTracker
+    import json
+    
+    tracker = CostTracker()
+    
+    if month:
+        from_date = f"{month}-01"
+        # Calculate last day of month
+        import calendar
+        year, mon = map(int, month.split('-'))
+        last_day = calendar.monthrange(year, mon)[1]
+        to_date = f"{month}-{last_day:02d}"
+    
+    spending = tracker.get_spending(from_date=from_date, to_date=to_date)
+    
+    if export_file:
+        json.dump(spending, export_file, indent=2)
+        click.echo(f"Report exported to {export_file.name}", err=True)
+    else:
+        click.echo(f"\nCost Report")
+        click.echo("=" * 60)
+        click.echo(f"Period:        {spending['start_date']} to {spending['end_date']}")
+        click.echo(f"Total Cost:    ${spending['total_cost']:.2f}")
+        click.echo(f"Total Prompts: {spending['total_prompts']:,}")
+        click.echo(f"Total Tokens:  {spending['total_tokens']:,}")
+        
+        if spending['by_model']:
+            click.echo(f"\nBy Model:")
+            click.echo("-" * 60)
+            for model, stats in sorted(spending['by_model'].items(), key=lambda x: x[1]['cost'], reverse=True):
+                pct = (stats['cost'] / spending['total_cost'] * 100) if spending['total_cost'] > 0 else 0
+                click.echo(f"  {model:<25} ${stats['cost']:>8.2f} ({pct:>5.1f}%)  {stats['prompts']:>6} prompts")
+
+
+# Model Comparison Commands
+@cli.group(name="compare")
+def compare_group():
+    """Compare responses from multiple models"""
+    pass
+
+
+@compare_group.command(name="run")
+@click.argument("prompt")
+@click.option("-m", "--model", "models", multiple=True, required=True, help="Models to compare (repeat for each)")
+@click.option("-s", "--system", help="System prompt")
+@click.option("--save", is_flag=True, help="Save comparison")
+@click.option("--no-metrics", is_flag=True, help="Don't show metrics")
+def compare_run(prompt, models, system, save, no_metrics):
+    """Compare the same prompt across multiple models"""
+    from llm.model_comparison import ModelComparison
+    
+    if len(models) < 2:
+        raise click.ClickException("Please specify at least 2 models to compare")
+    
+    comparator = ModelComparison()
+    
+    click.echo(f"Comparing {len(models)} models...", err=True)
+    comparison = comparator.compare(
+        prompt=prompt,
+        models=list(models),
+        system=system,
+        save=save
+    )
+    
+    output = comparator.format_comparison_text(comparison, show_metrics=not no_metrics)
+    click.echo(output)
+    
+    if save:
+        click.echo(f"\nComparison saved with ID: {comparison['id']}", err=True)
+
+
+@compare_group.command(name="list")
+@click.option("--limit", type=int, default=10, help="Number of comparisons to show")
+def compare_list(limit):
+    """List recent comparisons"""
+    from llm.model_comparison import ModelComparison
+    
+    comparator = ModelComparison()
+    comparisons = comparator.list_comparisons(limit=limit)
+    
+    if not comparisons:
+        click.echo("No comparisons found")
+        return
+    
+    click.echo(f"\nRecent Comparisons ({len(comparisons)})\n")
+    click.echo(f"{'ID':<10} {'Date':<20} {'Models':<40} {'Prompt':<30}")
+    click.echo("=" * 105)
+    
+    for comp in comparisons:
+        models_str = ", ".join(comp['models'])[:38]
+        prompt_str = comp['prompt'][:28]
+        date_str = comp['created_at'][:19]
+        click.echo(f"{comp['id'][:8]:<10} {date_str:<20} {models_str:<40} {prompt_str:<30}")
+
+
+@compare_group.command(name="show")
+@click.argument("comparison_id")
+@click.option("--no-metrics", is_flag=True, help="Don't show metrics")
+def compare_show(comparison_id, no_metrics):
+    """Show a saved comparison"""
+    from llm.model_comparison import ModelComparison
+    
+    comparator = ModelComparison()
+    comparison = comparator.get_comparison(comparison_id)
+    
+    if not comparison:
+        raise click.ClickException(f"Comparison '{comparison_id}' not found")
+    
+    output = comparator.format_comparison_text(comparison, show_metrics=not no_metrics)
+    click.echo(output)
+
+
+@compare_group.command(name="best")
+@click.argument("comparison_id")
+@click.option("--criteria", type=click.Choice(["cost", "time", "length"]), default="cost")
+def compare_best(comparison_id, criteria):
+    """Show the best model from a comparison"""
+    from llm.model_comparison import ModelComparison
+    
+    comparator = ModelComparison()
+    comparison = comparator.get_comparison(comparison_id)
+    
+    if not comparison:
+        raise click.ClickException(f"Comparison '{comparison_id}' not found")
+    
+    best_model = comparator.get_best_model(comparison, criteria=criteria)
+    
+    if best_model:
+        click.echo(f"Best model by {criteria}: {best_model}")
+    else:
+        click.echo("No successful responses to compare")
+
+
+# Batch Processing Commands
+@cli.group(name="batch")
+def batch_group():
+    """Process multiple prompts from files"""
+    pass
+
+
+@batch_group.command(name="run")
+@click.argument("input_file", type=click.Path(exists=True))
+@click.option("-m", "--model", default=None, help="Model to use")
+@click.option("--template", help="Prompt template with {variable} placeholders")
+@click.option("-s", "--system", help="System prompt")
+@click.option("-o", "--output", "output_file", type=click.Path(), help="Output file")
+@click.option("--rate-limit", type=int, help="Maximum prompts per minute")
+@click.option("--max-prompts", type=int, help="Maximum number of prompts to process")
+def batch_run(input_file, model, template, system, output_file, rate_limit, max_prompts):
+    """Process prompts from a file"""
+    from llm.batch_processing import BatchProcessor
+    from llm import get_default_model
+    from pathlib import Path
+    
+    if not model:
+        model = get_default_model()
+        if not model:
+            raise click.ClickException("No model specified and no default model set")
+        model = model.model_id
+    
+    processor = BatchProcessor()
+    
+    click.echo(f"Processing batch from {input_file}...", err=True)
+    click.echo(f"Model: {model}", err=True)
+    
+    batch_id = processor.process_batch(
+        input_file=Path(input_file),
+        model_name=model,
+        template=template,
+        system=system,
+        output_file=Path(output_file) if output_file else None,
+        rate_limit=rate_limit,
+        max_prompts=max_prompts
+    )
+    
+    click.echo(f"\nBatch processing completed!", err=True)
+    click.echo(f"Batch ID: {batch_id}", err=True)
+    
+    status = processor.get_batch_status(batch_id)
+    click.echo(f"Total: {status['total_prompts']}, "
+               f"Completed: {status['completed_prompts']}, "
+               f"Failed: {status['failed_prompts']}", err=True)
+    
+    if output_file:
+        click.echo(f"Results saved to: {output_file}", err=True)
+
+
+@batch_group.command(name="list")
+@click.option("--limit", type=int, default=10, help="Number of batches to show")
+def batch_list(limit):
+    """List recent batch runs"""
+    from llm.batch_processing import BatchProcessor
+    
+    processor = BatchProcessor()
+    batches = processor.list_batches(limit=limit)
+    
+    if not batches:
+        click.echo("No batch runs found")
+        return
+    
+    click.echo(f"\nBatch Runs ({len(batches)})\n")
+    click.echo(f"{'ID':<10} {'Date':<20} {'Model':<15} {'Total':<8} {'Done':<8} {'Status':<10}")
+    click.echo("=" * 80)
+    
+    for batch in batches:
+        date_str = batch['created_at'][:19]
+        status_str = batch['status']
+        click.echo(f"{batch['id'][:8]:<10} {date_str:<20} {batch['model']:<15} "
+                   f"{batch['total_prompts']:<8} {batch['completed_prompts']:<8} {status_str:<10}")
+
+
+@batch_group.command(name="status")
+@click.argument("batch_id")
+def batch_status(batch_id):
+    """Show status of a batch run"""
+    from llm.batch_processing import BatchProcessor
+    
+    processor = BatchProcessor()
+    status = processor.get_batch_status(batch_id)
+    
+    if not status:
+        raise click.ClickException(f"Batch '{batch_id}' not found")
+    
+    click.echo(f"\nBatch Status: {batch_id}")
+    click.echo("=" * 60)
+    click.echo(f"Status:       {status['status']}")
+    click.echo(f"Model:        {status['model']}")
+    click.echo(f"Input File:   {status['input_file']}")
+    if status['output_file']:
+        click.echo(f"Output File:  {status['output_file']}")
+    click.echo(f"Total:        {status['total_prompts']}")
+    click.echo(f"Completed:    {status['completed_prompts']}")
+    click.echo(f"Failed:       {status['failed_prompts']}")
+    
+    if status['total_prompts'] > 0:
+        pct = (status['completed_prompts'] / status['total_prompts']) * 100
+        click.echo(f"Progress:     {pct:.1f}%")
+    
+    click.echo(f"Created:      {status['created_at']}")
+    if status['completed_at']:
+        click.echo(f"Completed:    {status['completed_at']}")
