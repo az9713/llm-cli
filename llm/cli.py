@@ -5088,3 +5088,277 @@ def branch_archive_cmd(branch_name, conversation):
         click.echo(f"Branch '{branch_name}' archived")
     else:
         raise click.ClickException(f"Branch '{branch_name}' not found")
+
+
+@cli.group(name="context")
+def context_group():
+    """Manage conversation context and token limits"""
+    pass
+
+
+@context_group.command(name="status")
+@click.option("--conversation", "-c", required=True, help="Conversation ID")
+def context_status_cmd(conversation):
+    """Show context status"""
+    from llm.context_manager import ContextManager
+
+    manager = ContextManager()
+    status = manager.get_status(conversation)
+
+    click.echo(f"\nContext Status: {conversation}")
+    click.echo("=" * 60)
+    click.echo(f"Max tokens:       {status['max_tokens']}")
+    click.echo(f"Strategy:         {status['strategy']}")
+    click.echo(f"Auto-summarize:   {status['auto_summarize']}")
+    click.echo(f"Current messages: {status['current_messages']}")
+    click.echo(f"Estimated tokens: {status['estimated_tokens']}")
+    click.echo(f"Usage:            {status['percentage_used']:.1f}%")
+
+
+@context_group.command(name="set-limit")
+@click.argument("max_tokens", type=int)
+@click.option("--conversation", "-c", required=True, help="Conversation ID")
+def context_set_limit_cmd(max_tokens, conversation):
+    """Set token limit"""
+    from llm.context_manager import ContextManager
+
+    manager = ContextManager()
+    manager.set_limit(conversation, max_tokens)
+    click.echo(f"Token limit set to {max_tokens}")
+
+
+@context_group.command(name="set-strategy")
+@click.argument("strategy", type=click.Choice(["sliding_window", "summarize_old", "keep_important"]))
+@click.option("--conversation", "-c", required=True, help="Conversation ID")
+def context_set_strategy_cmd(strategy, conversation):
+    """Set context management strategy"""
+    from llm.context_manager import ContextManager
+
+    manager = ContextManager()
+    manager.set_strategy(conversation, strategy)
+    click.echo(f"Strategy set to '{strategy}'")
+
+
+@context_group.command(name="summarize")
+@click.option("--conversation", "-c", required=True, help="Conversation ID")
+@click.option("--keep", type=int, default=5, help="Number of recent messages to keep")
+def context_summarize_cmd(conversation, keep):
+    """Summarize old messages"""
+    from llm.context_manager import ContextManager
+
+    manager = ContextManager()
+    summary = manager.summarize(conversation, keep_recent=keep)
+    click.echo(f"\nSummary:\n{summary}")
+
+
+@cli.group(name="benchmark")
+def benchmark_group():
+    """Run and manage model benchmarks"""
+    pass
+
+
+@benchmark_group.command(name="create")
+@click.argument("name")
+@click.option("--from-file", type=click.Path(exists=True), help="Load test cases from JSON file")
+@click.option("--description", help="Benchmark description")
+def benchmark_create_cmd(name, from_file, description):
+    """Create a new benchmark"""
+    from llm.benchmark_manager import BenchmarkManager
+    import json
+
+    if not from_file:
+        raise click.ClickException("--from-file is required")
+
+    with open(from_file, 'r') as f:
+        test_cases = json.load(f)
+
+    manager = BenchmarkManager()
+    benchmark_id = manager.create_benchmark(name, test_cases, description)
+
+    click.echo(f"Benchmark '{name}' created: {benchmark_id}")
+
+
+@benchmark_group.command(name="run")
+@click.argument("benchmark_name")
+@click.option("-m", "--model", "models", multiple=True, required=True, help="Models to benchmark")
+def benchmark_run_cmd(benchmark_name, models):
+    """Run a benchmark"""
+    from llm.benchmark_manager import BenchmarkManager
+
+    manager = BenchmarkManager()
+
+    click.echo(f"Running benchmark '{benchmark_name}' on {len(models)} models...")
+
+    run_id = manager.run_benchmark(benchmark_name, list(models))
+    run = manager.get_run(run_id)
+
+    click.echo(f"\nBenchmark Results:")
+    click.echo("=" * 70)
+
+    for model, scores in run["scores"].items():
+        click.echo(f"\n{model}:")
+        if "error" in scores:
+            click.echo(f"  Error: {scores['error']}")
+        else:
+            click.echo(f"  Accuracy: {scores['accuracy']*100:.1f}%")
+            click.echo(f"  Avg Time: {scores['avg_time']:.2f}s")
+            click.echo(f"  Tests:    {scores['total_tests']}")
+
+
+@benchmark_group.command(name="list")
+def benchmark_list_cmd():
+    """List all benchmarks"""
+    from llm.benchmark_manager import BenchmarkManager
+
+    manager = BenchmarkManager()
+    benchmarks = manager.list_benchmarks()
+
+    if not benchmarks:
+        click.echo("No benchmarks found")
+        return
+
+    click.echo("\nAvailable Benchmarks:")
+    click.echo("=" * 70)
+
+    for b in benchmarks:
+        click.echo(f"\n{b['name']}")
+        if b['description']:
+            click.echo(f"  {b['description']}")
+        click.echo(f"  Created: {b['created_at']}")
+
+
+@cli.group(name="optimize")
+def optimize_group():
+    """Optimize prompts for better results"""
+    pass
+
+
+@optimize_group.command(name="prompt")
+@click.argument("prompt")
+@click.option("--strategy", type=click.Choice(["auto", "expand", "simplify", "clarify"]), default="auto")
+@click.option("--model", default="gpt-4o", help="Model to use for optimization")
+def optimize_prompt_cmd(prompt, strategy, model):
+    """Optimize a prompt"""
+    from llm.prompt_optimizer import PromptOptimizer
+
+    optimizer = PromptOptimizer()
+    result = optimizer.optimize(prompt, strategy, model)
+
+    if "error" in result:
+        raise click.ClickException(result["error"])
+
+    click.echo("\nPrompt Optimization")
+    click.echo("=" * 70)
+    click.echo(f"\nOriginal:\n{result['original']}")
+    click.echo(f"\nOptimized ({result['strategy']}):\n{result['optimized']}")
+    click.echo(f"\nImprovement: {result['improvement']}")
+
+
+@optimize_group.command(name="test")
+@click.argument("prompt")
+@click.option("--variants", type=int, default=3, help="Number of variants to generate")
+@click.option("--model", default="gpt-4o", help="Model to use")
+def optimize_test_cmd(prompt, variants, model):
+    """Test multiple prompt variants"""
+    from llm.prompt_optimizer import PromptOptimizer
+
+    optimizer = PromptOptimizer()
+    results = optimizer.test_variants(prompt, variants, model)
+
+    click.echo("\nPrompt Variants:")
+    click.echo("=" * 70)
+
+    for r in results:
+        click.echo(f"\nVariant #{r['number']}:")
+        if r.get('variant'):
+            click.echo(f"{r['variant']}")
+            if "result" in r and "error" not in r["result"]:
+                click.echo(f"Response length: {r['result'].get('length', 0)} chars")
+        else:
+            click.echo(f"Error: {r.get('error', 'Unknown')}")
+
+
+@cli.group(name="schedule")
+def schedule_group():
+    """Schedule prompts to run automatically"""
+    pass
+
+
+@schedule_group.command(name="add")
+@click.argument("prompt")
+@click.option("--model", default="gpt-4o", help="Model to use")
+@click.option("--at", help="Run once at specific time (ISO format)")
+@click.option("--cron", help="Cron expression for recurring schedule")
+@click.option("--name", help="Job name")
+@click.option("--system", help="System prompt")
+def schedule_add_cmd(prompt, model, at, cron, name, system):
+    """Add a scheduled job"""
+    from llm.scheduler import Scheduler
+
+    if not at and not cron:
+        raise click.ClickException("Either --at or --cron is required")
+
+    schedule_type = "once" if at else "cron"
+    schedule_value = at or cron
+
+    scheduler = Scheduler()
+    job_id = scheduler.add_job(
+        prompt=prompt,
+        model=model,
+        schedule_type=schedule_type,
+        schedule_value=schedule_value,
+        name=name,
+        system_prompt=system
+    )
+
+    click.echo(f"Job scheduled: {job_id}")
+
+
+@schedule_group.command(name="list")
+def schedule_list_cmd():
+    """List scheduled jobs"""
+    from llm.scheduler import Scheduler
+
+    scheduler = Scheduler()
+    jobs = scheduler.list_jobs()
+
+    if not jobs:
+        click.echo("No scheduled jobs")
+        return
+
+    click.echo("\nScheduled Jobs:")
+    click.echo("=" * 70)
+
+    for job in jobs:
+        click.echo(f"\n{job['name'] or job['id']}")
+        click.echo(f"  Model:     {job['model']}")
+        click.echo(f"  Type:      {job['schedule_type']}")
+        click.echo(f"  Schedule:  {job['schedule_value']}")
+        if job['last_run']:
+            click.echo(f"  Last run:  {job['last_run']}")
+
+
+@schedule_group.command(name="run")
+@click.argument("job_id")
+def schedule_run_cmd(job_id):
+    """Run a job immediately"""
+    from llm.scheduler import Scheduler
+
+    scheduler = Scheduler()
+    run_id = scheduler.run_job_now(job_id)
+    click.echo(f"Job executed: {run_id}")
+
+
+@schedule_group.command(name="delete")
+@click.argument("job_id")
+def schedule_delete_cmd(job_id):
+    """Delete a scheduled job"""
+    from llm.scheduler import Scheduler
+
+    scheduler = Scheduler()
+    success = scheduler.delete_job(job_id)
+
+    if success:
+        click.echo(f"Job deleted: {job_id}")
+    else:
+        raise click.ClickException(f"Job not found: {job_id}")
