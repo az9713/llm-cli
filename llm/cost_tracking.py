@@ -327,9 +327,18 @@ class CostTracker:
 
         budget = dict(budget)
 
+        # Map budget period names to get_spending period names
+        period_mapping = {
+            "daily": "today",
+            "weekly": "week",
+            "monthly": "month",
+            "yearly": "year"
+        }
+        spending_period = period_mapping.get(budget['period'], budget['period'])
+
         # Get spending for this budget's period
         spending = self.get_spending(
-            period=budget['period'],
+            period=spending_period,
             project=budget['category_value'] if budget['category'] == 'project' else None,
             model=budget['category_value'] if budget['category'] == 'model' else None
         )
