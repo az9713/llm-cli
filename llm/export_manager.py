@@ -119,24 +119,23 @@ class ExportManager:
             output_file = Path(output_file) if output_file else Path(f"batch_{batch_id}.csv")
 
             results = batch_data.get("results", [])
-            if results:
-                fieldnames = ["index", "prompt", "response", "success", "error", "tokens", "cost"]
+            fieldnames = ["index", "prompt", "response", "success", "error", "tokens", "cost"]
 
-                with open(output_file, 'w', newline='', encoding='utf-8') as f:
-                    writer = csv.DictWriter(f, fieldnames=fieldnames)
-                    writer.writeheader()
-                    for result in results:
-                        writer.writerow({
-                            "index": result.get("prompt_index", ""),
-                            "prompt": result.get("prompt", ""),
-                            "response": result.get("response", ""),
-                            "success": result.get("success", False),
-                            "error": result.get("error", ""),
-                            "tokens": result.get("tokens_used", 0),
-                            "cost": result.get("cost", 0)
-                        })
+            with open(output_file, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                for result in results:
+                    writer.writerow({
+                        "index": result.get("prompt_index", ""),
+                        "prompt": result.get("prompt", ""),
+                        "response": result.get("response", ""),
+                        "success": result.get("success", False),
+                        "error": result.get("error", ""),
+                        "tokens": result.get("tokens_used", 0),
+                        "cost": result.get("cost", 0)
+                    })
 
-                return str(output_file)
+            return str(output_file)
         elif output_format == "json":
             content = json.dumps(batch_data, indent=2)
         else:

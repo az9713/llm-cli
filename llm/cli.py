@@ -4634,10 +4634,11 @@ def batch_run(input_file, model, template, system, output_file, rate_limit, max_
     from pathlib import Path
     
     if not model:
-        model = get_default_model()
-        if not model:
+        default_model = get_default_model()
+        if not default_model:
             raise click.ClickException("No model specified and no default model set")
-        model = model.model_id
+        # get_default_model() returns a string ID, not a model object
+        model = default_model
     
     processor = BatchProcessor()
     
