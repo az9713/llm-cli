@@ -1,5 +1,17 @@
 # Feature 2: Model Comparison
 
+> **⚠️ PROPOSED FEATURE - NOT YET IMPLEMENTED**
+>
+> This document describes a **proposed feature** for the LLM CLI that does not currently exist.
+> The `llm compare` command and all related commands documented here are **not yet available**.
+>
+> **Attempting to run these commands will result in "Error: No such command"**
+>
+> This is a detailed specification for future implementation.
+
+---
+
+
 ## Motivation
 
 Different AI models have different strengths and weaknesses. Sometimes you need to:

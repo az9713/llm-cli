@@ -1,5 +1,17 @@
 # Feature 9: Smart Context Management
 
+> **⚠️ PROPOSED FEATURE - NOT YET IMPLEMENTED**
+>
+> This document describes a **proposed feature** for the LLM CLI that does not currently exist.
+> The `llm context` command and all related commands documented here are **not yet available**.
+>
+> **Attempting to run these commands will result in "Error: No such command"**
+>
+> This is a detailed specification for future implementation.
+
+---
+
+
 ## Motivation
 
 AI models have token limits that restrict how much text they can process:

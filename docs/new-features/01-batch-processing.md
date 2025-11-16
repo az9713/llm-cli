@@ -1,5 +1,16 @@
 # Feature 1: Batch Processing
 
+> **⚠️ PROPOSED FEATURE - NOT YET IMPLEMENTED**
+>
+> This document describes a **proposed feature** for the LLM CLI that does not currently exist.
+> The `llm batch` command and all related commands documented here are **not yet available**.
+>
+> **Attempting to run these commands will result in "Error: No such command"**
+>
+> This is a detailed specification for future implementation.
+
+---
+
 ## Motivation
 
 Many users need to process multiple prompts at once for tasks like:

@@ -1,5 +1,17 @@
 # Feature 10: Scheduled Prompts and Automation
 
+> **⚠️ PROPOSED FEATURE - NOT YET IMPLEMENTED**
+>
+> This document describes a **proposed feature** for the LLM CLI that does not currently exist.
+> The `llm schedule` command and all related commands documented here are **not yet available**.
+>
+> **Attempting to run these commands will result in "Error: No such command"**
+>
+> This is a detailed specification for future implementation.
+
+---
+
+
 ## Motivation
 
 Many tasks benefit from regular AI assistance:
