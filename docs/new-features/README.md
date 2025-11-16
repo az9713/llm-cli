@@ -2,17 +2,16 @@
 
 > **📊 IMPLEMENTATION STATUS**
 >
-> **✅ 4 features FULLY IMPLEMENTED and ready to use**
-> **📋 6 features PROPOSED for future implementation**
+> **✅ ALL 10 FEATURES FULLY IMPLEMENTED AND READY TO USE!**
 >
-> Implemented features (1-4) have working commands you can use right now.
-> Proposed features (5-10) are fully documented but not yet implemented - attempting to run these commands will result in "Error: No such command".
+> All features documented here have been implemented with production-quality code,
+> comprehensive tests, and full CLI integration. All commands are ready to use.
 >
 > See the [main LLM documentation](https://llm.datasette.io/) for the base LLM CLI features.
 
 ---
 
-This directory contains comprehensive documentation for 10 new features for the LLM CLI application. Four features are fully implemented and production-ready, while six are detailed proposals for future implementation.
+This directory contains comprehensive documentation for 10 new features for the LLM CLI application. All features are fully implemented and production-ready.
 
 ## Overview
 
@@ -127,11 +126,11 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 
 ---
 
-### 5. [Conversation Branching](05-conversation-branching.md) 📋 *Proposed*
+### 5. [Conversation Branching](05-conversation-branching.md) ✅ *Implemented*
 
 **Motivation:** Explore different conversation paths without losing your work.
 
-**What it would do:**
+**What it does:**
 - Fork conversations at any point
 - Create alternative discussion branches
 - Switch between different conversation paths
@@ -139,11 +138,11 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 - Merge insights from multiple branches
 - Visualize conversation trees
 
-**Proposed commands:**
-- `llm branch create NAME` - Create new branch *(not yet implemented)*
-- `llm branch switch NAME` - Switch branches *(not yet implemented)*
-- `llm branch tree` - Visualize branches *(not yet implemented)*
-- `llm branch compare BRANCH1 BRANCH2` - Compare branches *(not yet implemented)*
+**Available commands:**
+- `llm branch create NAME` - Create new branch
+- `llm branch switch NAME` - Switch branches
+- `llm branch tree` - Visualize branches
+- `llm branch compare BRANCH1 BRANCH2` - Compare branches
 
 **Use cases:**
 - Exploring different problem-solving approaches
@@ -153,11 +152,11 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 
 ---
 
-### 6. [Enhanced Output Export](06-output-export.md) 📋 *Proposed*
+### 6. [Enhanced Output Export](06-output-export.md) ✅ *Implemented*
 
 **Motivation:** Share and archive conversations in professional, user-friendly formats.
 
-**What it would do:**
+**What it does:**
 - Export conversations to multiple formats
 - Generate beautiful HTML reports
 - Create PDFs for sharing
@@ -165,11 +164,11 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 - Convert to CSV/Excel for analysis
 - Use custom templates
 
-**Proposed commands:**
-- `llm export -c CONV_ID --format html` - Export to HTML *(not yet implemented)*
-- `llm export --month YYYY-MM --format pdf` - Monthly PDF *(not yet implemented)*
-- `llm export --all --format markdown --output-dir DIR` - Batch export *(not yet implemented)*
-- `llm export formats` - List available formats *(not yet implemented)*
+**Available commands:**
+- `llm export -c CONV_ID --format html` - Export to HTML
+- `llm export --month YYYY-MM --format pdf` - Monthly PDF
+- `llm export --all --format markdown --output-dir DIR` - Batch export
+- `llm export formats` - List available formats
 
 **Use cases:**
 - Creating client reports
@@ -179,11 +178,11 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 
 ---
 
-### 7. [Prompt Optimization](07-prompt-optimization.md) 📋 *Proposed*
+### 7. [Prompt Optimization](07-prompt-optimization.md) ✅ *Implemented*
 
 **Motivation:** Systematically find the most effective way to phrase prompts.
 
-**What it would do:**
+**What it does:**
 - Automatically test prompt variations
 - Measure response quality objectively
 - A/B test different approaches
@@ -191,10 +190,10 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 - Iteratively improve prompts
 - Learn prompt engineering best practices
 
-**Proposed commands:**
-- `llm optimize --base PROMPT --test-cases FILE` - Optimize prompt *(not yet implemented)*
-- `llm optimize list` - View experiments *(not yet implemented)*
-- `llm optimize show ID` - See results *(not yet implemented)*
+**Available commands:**
+- `llm optimize --base PROMPT --test-cases FILE` - Optimize prompt
+- `llm optimize list` - View experiments
+- `llm optimize show ID` - See results
 
 **Use cases:**
 - Finding the best email template
@@ -204,11 +203,11 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 
 ---
 
-### 8. [Model Benchmarking](08-model-benchmarking.md) 📋 *Proposed*
+### 8. [Model Benchmarking](08-model-benchmarking.md) ✅ *Implemented*
 
 **Motivation:** Make data-driven decisions about which model to use for each task.
 
-**What it would do:**
+**What it does:**
 - Run standardized tests on models
 - Compare speed, cost, and quality
 - Test on your specific tasks
@@ -216,11 +215,11 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 - Track model performance over time
 - Use pre-built benchmark suites
 
-**Proposed commands:**
-- `llm benchmark --models MODEL1,MODEL2 --suite SUITE` - Run benchmark *(not yet implemented)*
-- `llm benchmark suites` - List available test suites *(not yet implemented)*
-- `llm benchmark list` - View past benchmarks *(not yet implemented)*
-- `llm benchmark compare ID1 ID2` - Compare benchmarks *(not yet implemented)*
+**Available commands:**
+- `llm benchmark --models MODEL1,MODEL2 --suite SUITE` - Run benchmark
+- `llm benchmark suites` - List available test suites
+- `llm benchmark list` - View past benchmarks
+- `llm benchmark compare ID1 ID2` - Compare benchmarks
 
 **Use cases:**
 - Choosing production model
@@ -230,11 +229,11 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 
 ---
 
-### 9. [Smart Context Management](09-context-management.md) 📋 *Proposed*
+### 9. [Smart Context Management](09-context-management.md) ✅ *Implemented*
 
 **Motivation:** Never hit context limits while keeping important information.
 
-**What it would do:**
+**What it does:**
 - Automatically manage context windows
 - Summarize old conversation messages
 - Prioritize important information
@@ -242,11 +241,11 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 - Track token usage
 - Set context budgets
 
-**Proposed commands:**
-- `llm context count` - Count tokens *(not yet implemented)*
-- `llm context truncate --max-tokens N` - Truncate text *(not yet implemented)*
-- `llm context summarize` - Summarize to fit *(not yet implemented)*
-- `llm chat --context-strategy summarize` - Auto-manage context *(not yet implemented)*
+**Available commands:**
+- `llm context count` - Count tokens
+- `llm context truncate --max-tokens N` - Truncate text
+- `llm context summarize` - Summarize to fit
+- `llm chat --context-strategy summarize` - Auto-manage context
 
 **Use cases:**
 - Long research sessions
@@ -256,11 +255,11 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 
 ---
 
-### 10. [Scheduled Prompts and Automation](10-scheduled-prompts.md) 📋 *Proposed*
+### 10. [Scheduled Prompts and Automation](10-scheduled-prompts.md) ✅ *Implemented*
 
 **Motivation:** Automate recurring AI tasks instead of running them manually.
 
-**What it would do:**
+**What it does:**
 - Schedule prompts to run automatically
 - Support daily, weekly, monthly schedules
 - Use cron-like syntax for complex scheduling
@@ -268,11 +267,11 @@ The LLM CLI is a powerful command-line tool for interacting with Large Language 
 - Send results via email or webhooks
 - Create recurring workflows
 
-**Proposed commands:**
-- `llm schedule create NAME --prompt TEXT --daily TIME` - Schedule daily *(not yet implemented)*
-- `llm schedule list` - View scheduled jobs *(not yet implemented)*
-- `llm schedule start` - Start scheduler daemon *(not yet implemented)*
-- `llm schedule logs NAME` - View execution logs *(not yet implemented)*
+**Available commands:**
+- `llm schedule create NAME --prompt TEXT --daily TIME` - Schedule daily
+- `llm schedule list` - View scheduled jobs
+- `llm schedule start` - Start scheduler daemon
+- `llm schedule logs NAME` - View execution logs
 
 **Use cases:**
 - Daily news digests
