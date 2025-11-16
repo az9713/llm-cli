@@ -1,5 +1,17 @@
 # Feature 3: Cost Tracking and Budget Management
 
+> **⚠️ PROPOSED FEATURE - NOT YET IMPLEMENTED**
+>
+> This document describes a **proposed feature** for the LLM CLI that does not currently exist.
+> The `llm costs` command and all related commands documented here are **not yet available**.
+>
+> **Attempting to run these commands will result in "Error: No such command"**
+>
+> This is a detailed specification for future implementation.
+
+---
+
+
 ## Motivation
 
 Using AI models costs money. API providers charge based on:
